@@ -1,6 +1,4 @@
 # Ignore all
-*
-
 # Unignore all with extensions
 !*.*
 
@@ -91,3 +89,6 @@ my_settings.txt
 borrar/*
 
 */ExecMean.txt
+
+.bash_history
+.dockerfile.hash

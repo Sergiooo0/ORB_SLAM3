@@ -1,0 +1,76 @@
+FROM ros@sha256:b7312519d1f0ca9e486a6f6f876a9de30c017b0f21d52811142e0ab1c33cba5e
+
+ARG DEBIAN_FRONTEND=noninteractive
+#FROM ubuntu:18.04
+
+# Useful tools
+RUN apt update && apt install -y \
+    wget \
+    unzip \
+    cmake \
+    curl git vim bash htop iputils-ping net-tools \
+    sudo less nano man build-essential tmux \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python 3.8, ROS and Numpy tools
+RUN apt update && apt install -y \
+    python2.7 python2.7-venv python2.7-dev \
+    python2-pip \
+    #python3-colcon-common-extensions \
+    && ln -sf python2.7 /usr/bin/python2 \
+    && ln -sf python2.7 /usr/bin/python \
+    && pip2 install --upgrade pip \
+    && pip2 install numpy \
+    && rm -rf /var/lib/apt/lists/* 
+
+# Install OpenCV (3.2.0)
+RUN cd /opt && \
+    wget -O opencv.zip https://github.com/opencv/opencv/archive/3.2.0.zip && \
+    unzip opencv.zip && \
+    cd opencv-3.2.0 && mkdir build && cd build && \
+    cmake -D CMAKE_BUILD_TYPE=Release \
+          -D CMAKE_INSTALL_PREFIX=/usr/local \
+          -D BUILD_TESTS=OFF \
+          -D BUILD_PERF_TESTS=OFF \
+          -D BUILD_DOCS=OFF \
+          -D BUILD_EXAMPLES=OFF \
+          -D BUILD_opencv_ts=OFF \
+          -D BUILD_opencv_python2=OFF \
+          -D BUILD_opencv_python3=OFF .. && \
+    make -j$(nproc) && make install
+
+# Optional: Install Python bindings (for consistency with modern Python tools)
+RUN pip3 install opencv-python
+
+
+# Install Eigen3 (required by Pangolin)
+RUN apt-get update && apt-get install -y libeigen3-dev
+
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-dev \
+    libegl1-mesa-dev \
+    libgles2-mesa-dev \
+    freeglut3-dev \
+    libepoxy-dev
+
+# Install Pangolin (from source)
+RUN git clone https://github.com/stevenlovegrove/Pangolin.git /opt/Pangolin && \
+    cd /opt/Pangolin && \
+    mkdir build && cd build && \
+    cmake .. && make -j$(nproc) && make install
+
+
+# Create non-root user
+RUN useradd -ms /bin/bash auria && \
+    echo 'auria ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+USER auria
+WORKDIR /home/auria
+
+COPY . .
+
+# Source ROS setup on shell startup
+RUN echo "source /opt/ros/galactic/setup.bash" >> ~/.bashrc
+
+CMD ["/bin/bash"]
